@@ -56,6 +56,12 @@ st.markdown("""
         .sidebar .sidebar-content {
             background-color: #f8f9fa;
         }
+        .welcome-message {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -65,15 +71,23 @@ client = AzureOpenAI(
     api_version="2023-05-15",
     azure_endpoint="https://chatbottestigp.openai.azure.com/"
 )
+
 # Session state initialization
 if 'conversation' not in st.session_state:
-    st.session_state.conversation = []
+    st.session_state.conversation = [{
+        "role": "assistant", 
+        "content": "Hi there! How can I help you today?",
+        "details": {
+            "confidence": 1.0,
+            "source": "welcome message"
+        }
+    }]
 if 'qa_pairs' not in st.session_state:
     st.session_state.qa_pairs = []
 if 'active' not in st.session_state:
     st.session_state.active = True
 
-# Text normalization function
+# Text normalization function with AC/CB handling
 def normalize_text(text):
     text = str(text).lower().strip()
     replacements = {
@@ -83,7 +97,11 @@ def normalize_text(text):
         'rec letter': 'letter of recommendation',
         'reference letter': 'letter of recommendation',
         'letters of rec': 'letter of recommendation',
-        'letters of recommendation': 'letter of recommendation'
+        'letters of recommendation': 'letter of recommendation',
+        'ac': 'application counseling',
+        'application counseling': 'application counseling',
+        'cb': 'candidacy building',
+        'candidacy building': 'candidacy building'
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
@@ -158,6 +176,8 @@ def generate_contextual_response(user_input, top_matches):
     2. Incorporates key points from all relevant snippets
     3. Maintains accuracy and completeness
     4. Uses natural, conversational language
+    5. If the question is about AC (Application Counseling) or CB (Candidacy Building), 
+       make sure to use the full terms at least once before using the abbreviations
     
     Final Answer:"""
 
@@ -196,7 +216,7 @@ def get_chat_response(user_input):
                 model="gpt-4",
                 messages=[{
                     "role": "user",
-                    "content": f"Answer concisely: {user_input}. If about recommendations, mention 2-3 letters are typical."
+                    "content": f"Answer concisely: {user_input}. If about recommendations, mention 2-3 letters are typical. If about AC or CB, explain these terms clearly."
                 }],
                 temperature=0.3,
                 max_tokens=200
@@ -208,7 +228,7 @@ def get_chat_response(user_input):
             }
         except:
             return {
-                "answer": "Typically 2-3 letters of recommendation are required for most programs.",
+                "answer": "I couldn't find a specific answer to your question. Could you please provide more details?",
                 "confidence": 0.0,
                 "source": "fallback"
             }
@@ -230,7 +250,14 @@ def end_chat():
     st.success("Chat ended. Refresh the page to start a new conversation.")
 
 def clear_chat_history():
-    st.session_state.conversation = []
+    st.session_state.conversation = [{
+        "role": "assistant", 
+        "content": "Hi there! How can I help you today?",
+        "details": {
+            "confidence": 1.0,
+            "source": "welcome message"
+        }
+    }]
     st.rerun()
 
 # Initialize chatbot
@@ -246,7 +273,7 @@ def main():
     st.markdown("<h1 class='header'>IGP Chatbot</h1>", unsafe_allow_html=True)
     st.markdown("""
         <div style='text-align: center; margin-bottom: 30px; color: #555;'>
-            Your intelligent assistant for queries
+            Your intelligent assistant for queries about Ingenius Prep
         </div>
     """, unsafe_allow_html=True)
     
